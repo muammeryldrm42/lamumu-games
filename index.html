@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Oyunlarım</title>
+  <style>
+    :root { --bg:#0b0d12; --fg:#eaeef6; --muted:#9aa4b2; --card:#131722; --accent:#4ea1ff; }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    header{position:sticky;top:0;background:linear-gradient(#0b0d12, rgba(11,13,18,.8));backdrop-filter: blur(6px);z-index:10;border-bottom:1px solid #1e2430}
+    .wrap{max-width:1100px;margin:auto;padding:16px}
+    h1{margin:0;font-size:20px}
+    .toolbar{display:flex;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
+    input[type="search"]{flex:1;min-width:230px;padding:10px 12px;border-radius:12px;border:1px solid #263042;background:#0f121a;color:var(--fg)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:16px}
+    .card{background:var(--card);border:1px solid #1e2430;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+    .thumb{aspect-ratio:16/9;background:#0f121a;display:grid;place-items:center;font-size:13px;color:var(--muted)}
+    .card .body{padding:12px;display:flex;flex-direction:column;gap:8px}
+    .title{font-weight:600}
+    .muted{color:var(--muted);font-size:13px}
+    .buttons{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap}
+    button, a.btn{padding:9px 12px;border-radius:12px;border:1px solid #2a3550;background:#111725;color:var(--fg);cursor:pointer;text-decoration:none}
+    .primary{background:var(--accent);border-color:#2d77c8;color:#09121e}
+    main{display:grid;grid-template-columns:340px 1fr;gap:16px}
+    aside{position:sticky;top:76px;align-self:start}
+    .viewer{background:#000;border:1px solid #1e2430;border-radius:16px;overflow:hidden;min-height:60vh;display:flex;flex-direction:column}
+    .viewer .bar{display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #1e2430;background:#0f141d}
+    .viewer .bar .name{font-weight:600}
+    iframe{flex:1;width:100%;border:0;background:#000}
+    .empty{padding:24px;color:var(--muted)}
+    @media (max-width:980px){ main{grid-template-columns:1fr} aside{position:static} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>🎮 Oyun Menüsü</h1>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Oyun ara..." />
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <main>
+      <section>
+        <div id="grid" class="grid"></div>
+      </section>
+
+      <aside>
+        <div class="viewer" id="viewer">
+          <div class="bar">
+            <span class="name" id="vName">Bir oyun seçin</span>
+            <span class="muted" id="vHint">Soldan oyunu seçtiğinizde burada açılır.</span>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <a id="openNewTab" class="btn" target="_blank" rel="noopener">Yeni sekmede aç</a>
+              <button id="fullBtn">Tam ekran</button>
+            </div>
+          </div>
+          <div class="empty" id="emptyMsg">Henüz oyun seçilmedi.</div>
+          <iframe id="frame" title="Oyun"></iframe>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    // Oyun listenizi burada düzenleyin:
+    const games = [
+      {
+        title: "Trafik Yarışı (Dikey)",
+        slug: "trafik",
+        // Alt klasör kullanıyorsanız: "./oyun1/"
+        // Dış siteyse tam URL yazın:
+        url: "./oyun1/",
+        desc: "Mobil/dikey optimize",
+        thumb: "", // küçük görseliniz yoksa boş bırakın
+      },
+      {
+        title: "Flappy Cow",
+        slug: "flappy",
+        url: "./oyun2/",
+        desc: "Boşluk/Mouse/Touch destekli",
+        thumb: "",
+      },
+      {
+        title: "Agar.io tarzı",
+        slug: "agario",
+        url: "./oyun3/",
+        desc: "Topla, büyü, hayatta kal",
+        thumb: "",
+      },
+      {
+        title: "Çiftlik (2D)",
+        slug: "ciftlik",
+        // Dış url örneği:
+        url: "https://kullanici.github.io/oyun4/",
+        desc: "İnekler, yem, hasat",
+        thumb: "",
+      },
+    ];
+
+    // URL parametresiyle doğrudan oyun açma: ?game=slug
+    const params = new URLSearchParams(location.search);
+    const initialSlug = params.get("game");
+
+    const grid = document.getElementById("grid");
+    const search = document.getElementById("search");
+    const frame = document.getElementById("frame");
+    const vName = document.getElementById("vName");
+    const vHint = document.getElementById("vHint");
+    const openNewTab = document.getElementById("openNewTab");
+    const emptyMsg = document.getElementById("emptyMsg");
+    const fullBtn = document.getElementById("fullBtn");
+
+    function render(list){
+      grid.innerHTML = "";
+      list.forEach(g=>{
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="thumb">${g.thumb ? `<img src="${g.thumb}" alt="" style="width:100%;height:100%;object-fit:cover">` : `${g.title}`}</div>
+          <div class="body">
+            <div class="title">${g.title}</div>
+            <div class="muted">${g.desc ?? ""}</div>
+            <div class="buttons">
+              <button class="primary" data-slug="${g.slug}">Site içinde aç</button>
+              <a class="btn" href="${g.url}" target="_blank" rel="noopener">Yeni sekmede</a>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+      grid.querySelectorAll('button[data-slug]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const slug = btn.getAttribute('data-slug');
+          const g = games.find(x=>x.slug===slug);
+          openGame(g);
+          const url = new URL(location.href);
+          url.searchParams.set("game", slug);
+          history.replaceState(null, "", url.toString());
+        });
+      });
+    }
+
+    function openGame(g){
+      if(!g) return;
+      vName.textContent = g.title;
+      vHint.textContent = "";
+      emptyMsg.style.display = "none";
+      // Not: Eğer dış URL iframe’e izin vermezse GitHub Pages genelde izin verir,
+      // ama bazı siteler engelleyebilir. Yine de deneyip fallback olarak “Yeni sekmede” düğmesi var.
+      frame.src = g.url;
+      openNewTab.href = g.url;
+    }
+
+    search.addEventListener('input', ()=>{
+      const q = search.value.toLowerCase();
+      render(games.filter(g =>
+        g.title.toLowerCase().includes(q) ||
+        (g.desc||"").toLowerCase().includes(q)
+      ));
+    });
+
+    fullBtn.addEventListener('click', ()=>{
+      if (frame.requestFullscreen) frame.requestFullscreen();
+      else alert("Tarayıcınız tam ekran API'sini desteklemiyor.");
+    });
+
+    render(games);
+    if(initialSlug){
+      const g = games.find(x=>x.slug===initialSlug);
+      if(g) openGame(g);
+    }
+  </script>
+</body>
+</html>
